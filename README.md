@@ -1,0 +1,1 @@
+# jpql_practice
