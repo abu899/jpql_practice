@@ -123,4 +123,86 @@ public class JpaMain {
             System.out.println("s = " + s);
         }
     }
+
+    public static void fetchJoinQuery(EntityManager em) {
+        setTeamAndMember(em);
+
+        // Lazy loading으로 인해 team이 필요한 횟수 만큼 쿼리가 추가로 나간다(N+1)
+//        String query = "select m from Member m";
+        String query = "select m from Member m join fetch m.team";
+        List<Member> resultList = em.createQuery(query, Member.class).getResultList();
+
+        for (Member resultMember : resultList) {
+            System.out.println("resultMember.getUsername() = " + resultMember.getUsername()
+                    + " resultMember.getTeamName = " + resultMember.getTeam().getName());
+        }
+    }
+
+    // 컬렉션 패치 조인 (1대다)
+    public static void fetchJoinWithDistinctQuery(EntityManager em) {
+        setTeamAndMember(em);
+
+        // 팀 입장에서 멤버가 N명이기에 데이터를 N개 만들어낸다
+//        String query = "select t from Team t join fetch t.members";
+        //language=JPAQL
+        String query = "select distinct t from Team t join fetch t.members";
+        List<Team> resultList = em.createQuery(query, Team.class).getResultList();
+
+        for (Team team : resultList) {
+            System.out.println("team.getName() = " + team.getName()
+                    + " members = " + team.getMembers().size());
+        }
+    }
+
+    public static void namedQuery(EntityManager em) {
+        setTeamAndMember(em);
+
+        List<Member> result = em.createNamedQuery("Member.findByUsername", Member.class)
+                .setParameter("username", "회원1")
+                .getResultList();
+    }
+
+    public static void bulkOperationQuery(EntityManager em) {
+        setTeamAndMember(em);
+
+        String query = "update Member m set m.age = 20";
+        // 쿼리 날리면 자동으로 flush
+        int resultCount = em.createQuery(query).executeUpdate();
+
+        // 벌크 연산시 영속성 컨텍스트 초기화를 해주지 않으면 반영된 값을 가져올 수 없다
+        Member findMember = em.find(Member.class, 1L);
+        System.out.println("findMember.getAge() = " + findMember.getAge());
+
+        em.clear(); // 영속성 컨텍스트 초기화
+
+        Member findMember2 = em.find(Member.class, 1L);
+        System.out.println("findMember2.getAge() = " + findMember2.getAge());
+
+        System.out.println("resultCount = " + resultCount);
+    }
+
+    private static void setTeamAndMember(EntityManager em) {
+        Team teamA = new Team();
+        teamA.setName("teamA");
+        em.persist(teamA);
+
+        Team teamB = new Team();
+        teamA.setName("teamB");
+        em.persist(teamB);
+
+        Member member = new Member();
+        member.setUsername("회원1");
+        member.setTeam(teamA);
+        em.persist(member);
+
+        Member member2 = new Member();
+        member2.setUsername("회원2");
+        member2.setTeam(teamA);
+        em.persist(member2);
+
+        Member member3 = new Member();
+        member3.setUsername("회원3");
+        member3.setTeam(teamB);
+        em.persist(member3);
+    }
 }
